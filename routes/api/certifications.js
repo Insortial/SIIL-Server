@@ -5,6 +5,7 @@ const User = require("../../models/user");
 const authenticate = require("../../middleware/authentication");
 const axios = require('axios');
 const router = express.Router();
+const logUserData = require("../../utils/logUserData")
 
 const updateBadgeState = (badges) => {
     let newBadgeState = []
