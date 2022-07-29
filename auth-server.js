@@ -1,13 +1,31 @@
-const express = require("express");
 require('dotenv').config();
-const jwt = require("jsonwebtoken");
+const express = require('express');
+const schedule = require('node-schedule');
 const bcrypt = require("bcryptjs");
-const qs = require('qs');
-const User = require("../../models/user");
-const axios = require('axios');
-const router = express.Router();
+const cors = require("cors");
+const app = express();
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+const User = require('./models/user');
+const nodemailer = require("nodemailer");
+const timestampToObjectId = require('./utils/timestampToObjectId');
+require('dotenv/config');
 
-router.post("/register", async (req, res) => {
+//Middlewares
+app.use(cors());
+app.use(express.json());
+
+mongoose.connect(
+    process.env.DB_CONNECTION, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+    }).then(() => {
+    console.log('Connected to DB');
+    console.log(mongoose.connection.readyState);
+});
+
+
+app.post("/register", async (req, res) => {
     const { email, password, firstName, lastName, broncoID } = req.body;
     try {
         const salt = await bcrypt.genSalt(10);
@@ -50,12 +68,12 @@ router.post("/register", async (req, res) => {
     }
 });
 
-router.post('/login', async (req, res) => {
+app.post('/login', async (req, res) => {
     //Authenticate user
     const email = req.body.username;
     const password = req.body.password;
     const user = await User.findOne({ email: email })
-    console.log()
+    console.log(user)
     bcrypt.compare(password, user.password, function(err, isValid) {
         if(err) {
             res.status(400).json({
@@ -66,21 +84,15 @@ router.post('/login', async (req, res) => {
 
         if(isValid) {
             const payload = {
-                id: user._id,
-                email: user.email,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                broncoID: user.broncoID
+                email: user.email
             }
         
-            const token = jwt.sign(
-                payload, 
-                process.env.ACCESS_TOKEN_SECRET, 
-                {expiresIn: "1d" }
-            );
+            const accessToken = generateAccessToken(payload);
+            const refreshToken =  jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET)
         
             res.status(200).json({
-                token: token,
+                accessToken: accessToken,
+                refreshToken: refreshToken,
                 success: true
             });
         } else {
@@ -93,4 +105,8 @@ router.post('/login', async (req, res) => {
     //res.json({ accessToken: token }) Response to user
 })
 
-module.exports = router;
+function generateAccessToken(payload) {
+    return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m"});
+}
+
+app.listen(4000);

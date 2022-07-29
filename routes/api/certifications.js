@@ -2,7 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const qs = require('qs');
 const User = require("../../models/user");
-const authenticate = require("../../middleware/authentication");
+const { authenticate } = require("../../middleware/authenticateToken");
 const axios = require('axios');
 const router = express.Router();
 const logUserData = require("../../utils/logUserData")
@@ -27,7 +27,7 @@ const getBadgeStatus = async (badges, user, token) => {
                 method: 'get',
                 url: `https://api.badgr.io/v2/badgeclasses/${badge.entityId}/assertions`,
                 headers: { 
-                  'Authorization': token
+                  'Authorization': `Bearer ${token}`
                 }
             };
     
@@ -55,12 +55,12 @@ const getBadgeStatus = async (badges, user, token) => {
         return newBadges
 }
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
     var config = {
         method: 'get',
         url: 'https://api.badgr.io/v2/badgeclasses',
         headers: { 
-          Authorization: req.headers['authorization']
+          'Authorization': `Bearer ${req.token}`
         }
     };
 
@@ -70,7 +70,7 @@ router.get('/:id', async (req, res) => {
         const user = await User.find({ broncoID: req.params.id });
         console.log(user)
         if (user.length != 0) {
-            badges = await getBadgeStatus(badges, user, req.headers['authorization'])
+            badges = await getBadgeStatus(badges, user, req.token)
             res.json({
                 name: `${user[0].firstName} ${user[0].lastName}`,
                 badges: badges
@@ -83,6 +83,7 @@ router.get('/:id', async (req, res) => {
         }
     })
     .catch(function (error) {
+        console.log("FAILED!!!!!")
         console.log(error);
     });
 })
