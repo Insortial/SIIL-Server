@@ -13,6 +13,7 @@ router.post("/register", async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         if (!salt) throw Error("Failed to generate salt.");
         const hashedPassword = await bcrypt.hash(password, salt);
+        console.log(hashedPassword);
         if (!hashedPassword) throw Error("Failed to hash password.");
         const user = await User.create({
             email: email,
@@ -49,32 +50,46 @@ router.post("/register", async (req, res) => {
     }
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
     //Authenticate user
-    const username = req.body.username;
+    const email = req.body.username;
     const password = req.body.password;
-    var data = qs.stringify({
-        'username': username,
-        'password': password 
-    })
-    var config = {
-        method: 'post',
-        url: 'https://api.badgr.io/o/token',
-        headers: { 
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        data : data
-    };
+    const user = await User.findOne({ email: email })
+    console.log()
+    bcrypt.compare(password, user.password, function(err, isValid) {
+        if(err) {
+            res.status(400).json({
+                message: error.message,
+                success: false
+            })
+        }
 
-    axios(config)
-    .then(function (response) {
-        console.log(response.data.access_token);
-        const token = response.data.access_token
-        res.json({ accessToken: token })
+        if(isValid) {
+            const payload = {
+                id: user._id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                broncoID: user.broncoID
+            }
+        
+            const token = jwt.sign(
+                payload, 
+                process.env.ACCESS_TOKEN_SECRET, 
+                {expiresIn: "1d" }
+            );
+        
+            res.status(200).json({
+                token: token,
+                success: true
+            });
+        } else {
+            res.status(401).json({
+                success: false, 
+                message: 'passwords do not match'
+            });
+        }
     })
-    .catch(function (error) {
-        console.log(error);
-    });
 })
 
 module.exports = router;

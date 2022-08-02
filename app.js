@@ -9,6 +9,10 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('./models/user');
 const nodemailer = require("nodemailer");
+<<<<<<< HEAD
+=======
+const { retrieveToken, authenticate } = require("./middleware/authenticateToken")
+>>>>>>> 5fe1f518a535c68f21c1b4c918b000042d0e002e
 const timestampToObjectId = require('./utils/timestampToObjectId');
 require('dotenv/config');
 
@@ -16,6 +20,11 @@ const job = schedule.scheduleJob('0 18 * * * *', function() {
     let users = require("./sharedData/userInfo")
     console.log(users);
 });
+<<<<<<< HEAD
+=======
+
+retrieveToken()
+>>>>>>> 5fe1f518a535c68f21c1b4c918b000042d0e002e
 job.schedule()
 
 var transporter = nodemailer.createTransport({
@@ -62,7 +71,11 @@ async function findToday () {
     console.log(signIns)
 }
 
+<<<<<<< HEAD
 findToday()
+=======
+//findToday()
+>>>>>>> 5fe1f518a535c68f21c1b4c918b000042d0e002e
 
 //Middlewares
 app.use(cors());
