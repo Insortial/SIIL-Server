@@ -7,6 +7,7 @@ const app = express();
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('./models/user');
+const Token = require('./models/refresh_token');
 const nodemailer = require("nodemailer");
 const timestampToObjectId = require('./utils/timestampToObjectId');
 require('dotenv/config');
@@ -24,6 +25,20 @@ mongoose.connect(
     console.log(mongoose.connection.readyState);
 });
 
+app.post("/token", (req, res) => {
+    const refreshToken = req.body.accessToken
+    if(refreshToken == null) return res.sendStatus(401)
+    const token = await Token.findOne({ token: refreshToken});
+    if(token == null) return res.sendStatus(403)
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+        const accessToken = generateAccessToken({email: user.email});
+        res.status(200).json({
+            accessToken: accessToken,
+            success: true
+        });
+    })
+    
+})
 
 app.post("/register", async (req, res) => {
     const { email, password, firstName, lastName, broncoID } = req.body;
@@ -42,22 +57,15 @@ app.post("/register", async (req, res) => {
         });
 
         const payload = {
-            id: user._id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            broncoID: user.broncoID
+            email: user.email
         }
 
-        const token = jwt.sign(
-            payload, 
-            process.env.ACCESS_TOKEN_SECRET, 
-            {expiresIn: "1d" }
-        );
+        const accessToken = generateAccessToken(payload);
+        const refreshToken =  jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "1d"})
 
         res.status(200).json({
-            token: token,
-            refresh_token: 0,
+            accessToken: accessToken,
+            refreshToken: refreshToken,
             success: true
         });
     } catch(error) {
@@ -88,7 +96,7 @@ app.post('/login', async (req, res) => {
             }
         
             const accessToken = generateAccessToken(payload);
-            const refreshToken =  jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET)
+            const refreshToken =  jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "1d"})
         
             res.status(200).json({
                 accessToken: accessToken,

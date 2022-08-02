@@ -53,8 +53,9 @@ function authenticateToken(req, res, next) {
             next();
         })
         .catch(function (error) {
+            retrieveAccessToken();
             console.log(error);
-            return res.sendStatus(403)
+            authenticateToken(req, res, next);
         });
     })
 }

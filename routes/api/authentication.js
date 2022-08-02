@@ -90,7 +90,6 @@ router.post('/login', async (req, res) => {
             });
         }
     })
-    //res.json({ accessToken: token }) Response to user
 })
 
 module.exports = router;
