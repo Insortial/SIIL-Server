@@ -9,12 +9,17 @@ const jwt = require('jsonwebtoken');
 const User = require('./models/user');
 const Token = require('./models/refresh_token');
 const nodemailer = require("nodemailer");
+const cookieParser = require("cookie-parser");
 const timestampToObjectId = require('./utils/timestampToObjectId');
 require('dotenv/config');
 
 //Middlewares
-app.use(cors());
+app.use(cors({
+    credentials: true,
+    origin: 'http://localhost:3001'
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 mongoose.connect(
     process.env.DB_CONNECTION, {
@@ -25,9 +30,11 @@ mongoose.connect(
     console.log(mongoose.connection.readyState);
 });
 
-app.post("/token", (req, res) => {
-    const refreshToken = req.body.accessToken
-    if(refreshToken == null) return res.sendStatus(401)
+app.post("/token", async (req, res) => {
+    console.log(req.headers.cookie)
+    const cookies = req.cookies
+    if (!cookies?.jwt) return res.sendStatus(401);
+    const refreshToken = cookies.jwt;
     const token = await Token.findOne({ token: refreshToken});
     if(token == null) return res.sendStatus(403)
     jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
@@ -62,7 +69,7 @@ app.post("/register", async (req, res) => {
 
         const accessToken = generateAccessToken(payload);
         const refreshToken =  jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "1d"})
-
+        
         res.status(200).json({
             accessToken: accessToken,
             refreshToken: refreshToken,
@@ -97,10 +104,14 @@ app.post('/login', async (req, res) => {
         
             const accessToken = generateAccessToken(payload);
             const refreshToken =  jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "1d"})
-        
+            Token.create({
+                user: user.email,
+                token: refreshToken,
+                expires: "1d",
+            })
+            res.cookie('jwt', refreshToken, {httpOnly: true, maxAge: 24 * 60 * 60 * 1000})
             res.status(200).json({
                 accessToken: accessToken,
-                refreshToken: refreshToken,
                 success: true
             });
         } else {

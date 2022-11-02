@@ -27,36 +27,20 @@ const retrieveAccessToken = async () => {
       console.log(error);
     });
 }
+//penis
 
 function authenticateToken(req, res, next) {
-    console.log(access_token)
-    var config = {
-        method: 'get',
-        url: 'https://api.badgr.io/v2/badgeclasses',
-        headers: { 
-          'Authorization': `Bearer ${access_token}`
-        }
-    };
-
-    const authHeader = req.headers['authorization']
+    const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]
-    if (token == null) return res.sendStatus(401)
+    if(token == null) return res.sendStatus(401)
 
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403)
+        if (err) return res.sendStatus(401)
         console.log("Verified")
 
         req.user = user;
-        axios(config)
-        .then(function (response) {
-            req.token = access_token;
-            next();
-        })
-        .catch(function (error) {
-            retrieveAccessToken();
-            console.log(error);
-            authenticateToken(req, res, next);
-        });
+        req.token = access_token
+        next()
     })
 }
 

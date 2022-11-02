@@ -55,7 +55,13 @@ const getBadgeStatus = async (badges, user, token) => {
         return newBadges
 }
 
+/**
+ * @route   GET api/auth/login
+ * @desc    Get the certifications for the person associated with a given id.
+ * @access  Private
+ */
 router.get('/:id', authenticate, async (req, res) => {
+    console.log(req.token)
     var config = {
         method: 'get',
         url: 'https://api.badgr.io/v2/badgeclasses',

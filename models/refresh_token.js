@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
+const User = require('./user');
 
 const refreshSchema = new mongoose.Schema({
     user: {
-        type: Schema.Types.ObjectId, 
+        type: String, 
         ref: 'User',
         required: true
     },
@@ -11,7 +12,7 @@ const refreshSchema = new mongoose.Schema({
         required: true
     },
     expires: {
-        type: Date,
+        type: String,
         required: true
     },
     created: {
@@ -20,4 +21,4 @@ const refreshSchema = new mongoose.Schema({
     },
 })
 
-module.exports = mongoose.model("Token", userSchema);
+module.exports = mongoose.model("Token", refreshSchema);
