@@ -1,3 +1,5 @@
+const fetch = require('node-fetch');
+const { Headers } = fetch;
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const qs = require('qs');

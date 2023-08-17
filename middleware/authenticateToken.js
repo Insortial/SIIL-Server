@@ -1,3 +1,5 @@
+const fetch = require('node-fetch');
+const { Headers } = fetch;
 const axios = require("axios");
 require('dotenv').config();
 const jwt = require("jsonwebtoken");
