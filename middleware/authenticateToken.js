@@ -6,28 +6,29 @@ let access_token;
 console.log(access_token)
 
 const retrieveAccessToken = async () => {
-    var data = qs.stringify({
-        'username': process.env.BADGR_EMAIL,
-        'password': process.env.BADGR_PASSWORD
-    });
-    var config = {
-        method: 'post',
-        url: 'https://api.badgr.io/o/token',
-        headers: { 
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        data : data
+    var myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+    var urlencoded = new URLSearchParams();
+    urlencoded.append("username", process.env.BADGR_EMAIL);
+    urlencoded.append("password", process.env.BADGR_PASSWORD);
+
+    var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: urlencoded,
+        redirect: 'follow'
     };
-      
-    access_token = await axios(config)
-    .then(function (response) {
-      return response.data.access_token;
-    })
-    .catch(function (error) {
-      console.log(error);
-    });
+
+    fetch("https://api.badgr.io/o/token", requestOptions)
+        .then(response => response.json())
+        .then(result => {
+            console.log(result)
+            access_token = result.access_token
+            return result.access_token
+        })
+        .catch(error => console.log('error', error));
 }
-//penis
 
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -37,7 +38,7 @@ function authenticateToken(req, res, next) {
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
         if (err) return res.sendStatus(401)
         console.log("Verified")
-
+        
         req.user = user;
         req.token = access_token
         next()

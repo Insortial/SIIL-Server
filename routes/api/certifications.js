@@ -19,26 +19,28 @@ const updateBadgeState = (badges) => {
     return newBadgeState;
 }
 
-const getBadgeStatus = async (badges, user, token) => {
+const getBadgeStatus = async (badges, email, token) => {
     let newBadges = badges
         let promises = []
-        newBadges.forEach((badge) => {
-            var config = {
-                method: 'get',
-                url: `https://api.badgr.io/v2/badgeclasses/${badge.entityId}/assertions`,
-                headers: { 
-                  'Authorization': `Bearer ${token}`
-                }
+        newBadges.forEach(async (badge) => {
+            let myHeaders = new Headers();
+            myHeaders.append("Authorization", `Bearer ${token}`);
+
+            var requestOptions = {
+                method: 'GET',
+                headers: myHeaders,
+                redirect: 'follow'
             };
-    
-            promises.push(axios(config))
+            promises.push(fetch(`https://api.badgr.io/v2/badgeclasses/${badge.entityId}/assertions`, requestOptions).then(response => response.json()))
         })
 
-        await Promise.all(promises).then(async (response) => {
-            response.forEach((instance) => {
+        let responses = await Promise.all(promises)
+        /* .then((response) => {
+            response.map(async (instance) => {
                 let userFound = false;
-                instance.data.result.forEach((badge) => {
-                    if(badge.recipient.plaintextIdentity === user[0].email) {
+                let testIns = await instance.json()
+                testIns.result?.map((badge) => {
+                    if(badge.recipient.plaintextIdentity === email) {
                         newBadges.forEach((badgeClass) => {
                             if(badgeClass.entityId === badge.badgeclass)
                             {
@@ -47,51 +49,75 @@ const getBadgeStatus = async (badges, user, token) => {
                             }
                         })
                     } 
-                    //console.log(userFound + " " + badge.badgeclass)
                 })
+            })
+            console.log(newBadges)
+        }) */
+        .catch(error => console.log(error.message))
+
+        responses.map((instance) => {
+            let userFound = false;
+            console.log(instance)
+            instance.result?.map((badge) => {
+                if(badge.recipient.plaintextIdentity === email) {
+                    newBadges.forEach((badgeClass) => {
+                        if(badgeClass.entityId === badge.badgeclass)
+                        {
+                            console.log("WORKING")
+                            badgeClass.finished = true
+                        }
+                    })
+                } 
             })
         })
 
+        console.log(newBadges)
+
         return newBadges
+
 }
 
 /**
- * @route   GET api/auth/login
+ * @route   GET api/certifications
  * @desc    Get the certifications for the person associated with a given id.
  * @access  Private
  */
-router.get('/:id', authenticate, async (req, res) => {
-    console.log(req.token)
-    var config = {
-        method: 'get',
-        url: 'https://api.badgr.io/v2/badgeclasses',
-        headers: { 
-          'Authorization': `Bearer ${req.token}`
-        }
+router.get('/:email', authenticate, async (req, res) => {
+    console.log("REQUEST TOKEN " + req.token)
+    var myHeaders = new Headers();
+    myHeaders.append("Authorization", `Bearer ${req.token}`);
+
+    var requestOptions = {
+        method: 'GET',
+        headers: myHeaders,
+        redirect: 'follow'
     };
 
-    axios(config)
-    .then(async (response) => {
-        let badges = updateBadgeState(response.data.result);
-        const user = await User.find({ broncoID: req.params.id });
-        console.log(user)
-        if (user.length != 0) {
-            badges = await getBadgeStatus(badges, user, req.token)
-            res.json({
-                name: `${user[0].firstName} ${user[0].lastName}`,
-                badges: badges
-            })
-        } else {
-            res.status(404).json({
-                message: "User doesn't exist in the database.",
-                success: false
-            });
-        }
-    })
-    .catch(function (error) {
-        console.log("FAILED!!!!!")
-        console.log(error);
-    });
+    fetch(`https://api.badgr.io/v2/issuers/${process.env.BADGR_ISSUER}/badgeclasses`, requestOptions)
+        .then(response => response.json())
+        .then(async (response) => {
+            let badges = updateBadgeState(response.result);
+            const user = await User.find({ email: req.params.email });
+            console.log(user)
+            if (user.length != 0) {
+                badges = await getBadgeStatus(badges, req.params.email, req.token)
+                console.log(badges)
+                res.json({
+                    name: `${user[0].firstName} ${user[0].lastName}`,
+                    badges: badges
+                })
+            } else {
+                res.status(404).json({
+                    message: "User doesn't exist in the database.",
+                    success: false
+                });
+            }
+        })
+        .catch(error => {
+            console.log("FAILED!!!!!")
+            console.log(error.message);
+        });
 })
+
 
 module.exports = router;
