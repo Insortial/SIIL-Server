@@ -95,11 +95,30 @@ router.get('/:email', authenticate, async (req, res) => {
         redirect: 'follow'
     };
 
+    var cppHeaders = new Headers();
+    cppHeaders.append("Content-Type", "application/json");
+    cppHeaders.append("Authorization", "Bearer Y3BwaW5ub3ZsYWJAY2FscG9seXBvbW9uYS1XNkw1TjU6ZDZiNGZkOGEtN2NmOS00MjBkLWJlNGYtNDY4NTVhZTA1N2Ni");
+
+    var raw = JSON.stringify({
+        "broncoNumber": req.params.bid
+    });
+
+    var requestOptionsCPP = {
+        method: 'POST',
+        headers: cppHeaders,
+        body: raw,
+        redirect: 'follow'
+    };
+
     fetch(`https://api.badgr.io/v2/issuers/${process.env.BADGR_ISSUER}/badgeclasses`, requestOptions)
         .then(response => response.json())
         .then(async (response) => {
             let badges = updateBadgeState(response.result);
-            const user = await User.find({ email: req.params.email });
+            fetch("https://api-test.cpp.edu:9093/ws/simple/getUserStatus", requestOptionsCPP)
+                .then(response => response.json())
+                .catch(error => console.log('error', error));
+            console.log(response.userStatus[0].email)
+            const user = await User.find({ email: response.userStatus[0].email });
             console.log(user)
             if (user.length != 0) {
                 badges = await getBadgeStatus(badges, req.params.email, req.token)
@@ -116,8 +135,7 @@ router.get('/:email', authenticate, async (req, res) => {
             }
         })
         .catch(error => {
-            console.log("FAILED!!!!!")
-            console.log(error.message);
+            console.log("ERROR MESSAGE " + error.message);
         });
 })
 
