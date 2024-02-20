@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-const { Headers } = fetch;
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const qs = require('qs');
@@ -23,59 +21,42 @@ const updateBadgeState = (badges) => {
 
 const getBadgeStatus = async (badges, email, token) => {
     let newBadges = badges
-        let promises = []
-        newBadges.forEach(async (badge) => {
-            let myHeaders = new Headers();
-            myHeaders.append("Authorization", `Bearer ${token}`);
+    let promises = []
+    let myHeaders = new Headers();
+    myHeaders.append("Authorization", `Bearer ${token}`);
 
-            var requestOptions = {
-                method: 'GET',
-                headers: myHeaders,
-                redirect: 'follow'
-            };
-            promises.push(fetch(`https://api.badgr.io/v2/badgeclasses/${badge.entityId}/assertions`, requestOptions).then(response => response.json()))
-        })
+    var requestOptions = {
+        method: 'GET',
+        headers: myHeaders,
+        redirect: 'follow'
+    }
+    let response = await fetch(`https://api.badgr.io/v2/issuers/5geX2ng3QfabACgKt6W0Hg/assertions?recipient=${email}`, requestOptions).then(response => response.json())
+    newBadges.forEach(async (badge) => {
+        
+    
+       
+    })
 
-        let responses = await Promise.all(promises)
-        /* .then((response) => {
-            response.map(async (instance) => {
-                let userFound = false;
-                let testIns = await instance.json()
-                testIns.result?.map((badge) => {
-                    if(badge.recipient.plaintextIdentity === email) {
-                        newBadges.forEach((badgeClass) => {
-                            if(badgeClass.entityId === badge.badgeclass)
-                            {
-                                console.log("WORKING")
-                                badgeClass.finished = true
-                            }
-                        })
-                    } 
-                })
+    let responses = await Promise.all(promises)
+    .catch(error => console.log(error.message))
+
+    response.result.map((instance) => {
+        let userFound = false;
+        console.log(instance)
+        if(instance.recipient.plaintextIdentity === email) {
+            newBadges.forEach((badgeClass) => {
+                if(badgeClass.entityId === instance.badgeclass)
+                {
+                    console.log("WORKING")
+                    badgeClass.finished = true
+                }
             })
-            console.log(newBadges)
-        }) */
-        .catch(error => console.log(error.message))
+        } 
+    })
 
-        responses.map((instance) => {
-            let userFound = false;
-            console.log(instance)
-            instance.result?.map((badge) => {
-                if(badge.recipient.plaintextIdentity === email) {
-                    newBadges.forEach((badgeClass) => {
-                        if(badgeClass.entityId === badge.badgeclass)
-                        {
-                            console.log("WORKING")
-                            badgeClass.finished = true
-                        }
-                    })
-                } 
-            })
-        })
+    console.log(newBadges)
 
-        console.log(newBadges)
-
-        return newBadges
+    return newBadges
 
 }
 
@@ -84,7 +65,7 @@ const getBadgeStatus = async (badges, email, token) => {
  * @desc    Get the certifications for the person associated with a given id.
  * @access  Private
  */
-router.get('/:email', authenticate, async (req, res) => {
+router.get('/:bid', authenticate, async (req, res) => {
     console.log("REQUEST TOKEN " + req.token)
     var myHeaders = new Headers();
     myHeaders.append("Authorization", `Bearer ${req.token}`);
@@ -110,21 +91,27 @@ router.get('/:email', authenticate, async (req, res) => {
         redirect: 'follow'
     };
 
-    fetch(`https://api.badgr.io/v2/issuers/${process.env.BADGR_ISSUER}/badgeclasses`, requestOptions)
-        .then(response => response.json())
-        .then(async (response) => {
-            let badges = updateBadgeState(response.result);
-            fetch("https://api-test.cpp.edu:9093/ws/simple/getUserStatus", requestOptionsCPP)
-                .then(response => response.json())
-                .catch(error => console.log('error', error));
-            console.log(response.userStatus[0].email)
-            const user = await User.find({ email: response.userStatus[0].email });
-            console.log(user)
-            if (user.length != 0) {
-                badges = await getBadgeStatus(badges, req.params.email, req.token)
+    Promise.all([ fetch(`https://api.badgr.io/v2/issuers/${process.env.BADGR_ISSUER}/badgeclasses`, requestOptions),
+        fetch("https://api-test.cpp.edu:9093/ws/simple/getUserStatus", requestOptionsCPP)])
+        .then(results => Promise.all(results.map(r => r.json())))
+        .then(async results =>  {
+            let badges = results[0]
+            let userState = results[1]
+            console.log(userState.userStatus)
+            let badgeState = updateBadgeState(badges.result);
+            const userResponse = await User.find({ email: userState.userStatus[0].email });
+            if (userResponse.length != 0) {
+                badges = await getBadgeStatus(badgeState, userState.userStatus[0].email, req.token)
                 console.log(badges)
                 res.json({
-                    name: `${user[0].firstName} ${user[0].lastName}`,
+                    name: `${userResponse[0].firstName} ${userResponse[0].lastName}`,
+                    badges: badges
+                })
+            } else if (userState.userStatus.length == 1){
+                badges = await getBadgeStatus(badgeState, userState.userStatus[0].email, req.token)
+                console.log(badges)
+                res.json({
+                    name: `${userState.userStatus[0].name.split(" ")[0]} ${userState.userStatus[0].name.split(" ")[1]}`,
                     badges: badges
                 })
             } else {
@@ -133,10 +120,10 @@ router.get('/:email', authenticate, async (req, res) => {
                     success: false
                 });
             }
-        })
-        .catch(error => {
-            console.log("ERROR MESSAGE " + error.message);
-        });
+    }).catch(error => {
+        console.log(error)
+    })
+
 })
 
 

@@ -48,19 +48,39 @@ app.post("/token", async (req, res) => {
 })
 
 app.post("/register", async (req, res) => {
-    const { email, password, firstName, lastName, broncoID } = req.body;
+    const { broncoID, password } = req.body;
     try {
+        var cppHeaders = new Headers();
+        cppHeaders.append("Content-Type", "application/json");
+        cppHeaders.append("Authorization", "Bearer " + process.env.CPP_TOKEN);
+
+        var raw = JSON.stringify({
+            "broncoNumber": broncoID
+        });
+    
+        var requestOptionsCPP = {
+            method: 'POST',
+            headers: cppHeaders,
+            body: raw,
+            redirect: 'follow'
+        };
+
+        let response = await fetch("https://api-test.cpp.edu:9093/ws/simple/getUserStatus", requestOptionsCPP)
+                                .then(result => {return result.json()})
+        
+        if(response.userStatus.length == 0) return res.status(500).json({
+            message: "Bronco ID not valid",
+            success: false
+        })
         const salt = await bcrypt.genSalt(10);
         if (!salt) throw Error("Failed to generate salt.");
         const hashedPassword = await bcrypt.hash(password, salt);
         console.log(hashedPassword);
         if (!hashedPassword) throw Error("Failed to hash password.");
         const user = await User.create({
-            email: email,
-            password: hashedPassword,
-            firstName: firstName,
-            lastName: lastName,
             broncoID: broncoID,
+            password: hashedPassword,
+            role: "Student"
         });
 
         const payload = {
@@ -105,7 +125,7 @@ app.post('/login', async (req, res) => {
             const accessToken = generateAccessToken(payload);
             const refreshToken =  jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "1d"})
             Token.create({
-                user: user.email,
+                user: user.broncoID,
                 token: refreshToken,
                 expires: "1d",
             })
